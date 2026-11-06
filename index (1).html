@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="脱パンパン">
+<meta name="theme-color" content="#0a8a85">
+<title>脱パンパン顔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 炭酸水の青緑が「シラフ」、ワイン色が「飲んだ日」、称号は金。太いディスプレイ書体で数字と称号を立たせる。1カラム＋下タブ */
+:root{
+  --bg:#edf3f4; --surface:#ffffff; --ink:#13232a; --muted:#5b6e77; --line:#d4dfe2;
+  --accent:#0a8a85; --accent-soft:#d9efed; --wine:#8a2741; --wine-soft:#f5e1e6;
+  --gold:#a2700a; --gold-soft:#fbf0d6; --warn:#9a5b06; --warn-soft:#fbefd9;
+  --display:"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e191d; --surface:#15242a; --ink:#e4eef0; --muted:#98adb5; --line:#253a41;
+    --accent:#3cc4bb; --accent-soft:#163a3a; --wine:#e3738e; --wine-soft:#3a1d26;
+    --gold:#f0c35a; --gold-soft:#3a2f14; --warn:#e7ad4f; --warn-soft:#3a2c14; color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+#app{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 96px)}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:.02em}
+h2{font-size:18px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.muted{color:var(--muted);font-size:14px}
+.small{font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.num{font-family:var(--display);font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+button,.btn{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;text-align:center}
+button:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.wine{background:var(--wine);border-color:var(--wine);color:#fff}
+.ghost{background:transparent}
+.chip{min-height:38px;padding:6px 12px;border-radius:999px;font-weight:500;font-size:14px}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.chip.on-wine{background:var(--wine-soft);border-color:var(--wine)}
+.big{min-height:64px;font-size:16px;flex:1;line-height:1.3}
+input[type=text],input[type=number],input[type=date],input[type=password]{font:inherit;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-height:44px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.pill.clean{background:var(--accent-soft);color:var(--accent)}
+.pill.drank{background:var(--wine-soft);color:var(--wine)}
+.pill.title{background:var(--gold-soft);color:var(--gold)}
+.alert{border-radius:12px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:6px}
+.alert.warn{background:var(--warn-soft);border-left:4px solid var(--warn)}
+.alert.danger{background:var(--wine-soft);border-left:4px solid var(--wine)}
+.alert.info{background:var(--accent-soft);border-left:4px solid var(--accent)}
+.quote{border-left:4px solid var(--gold);padding:10px 14px;background:var(--gold-soft);border-radius:0 12px 12px 0;display:flex;flex-direction:column;gap:2px}
+.quote q{font-weight:700;font-size:16px;quotes:"「" "」"}
+.quote cite{font-style:normal;font-size:12px;color:var(--muted)}
+.hero{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center}
+.hero .day{font-size:42px;line-height:1}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .num{font-size:19px;line-height:1.2;overflow-wrap:anywhere}
+.stat .muted{font-size:11px;line-height:1.35}
+.titles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tt{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tt.got{background:var(--gold-soft);border-color:var(--gold)}
+.tt b{font-family:var(--display);font-weight:400;font-size:15px;line-height:1.3}
+.tt.got b{color:var(--gold)}
+.tt span{font-size:12px;color:var(--muted);line-height:1.4}
+.photo{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:var(--bg);display:block}
+.ph-empty{width:100%;aspect-ratio:1;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;text-align:center;padding:16px}
+.thumb{width:72px;height:72px;border-radius:10px;object-fit:cover;flex:0 0 auto}
+.ba{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--bg)}
+.ba img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ba .lbl{position:absolute;bottom:8px;font-size:12px;font-weight:700;background:rgba(0,0,0,.55);color:#fff;padding:2px 8px;border-radius:6px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(env(safe-area-inset-bottom) + 6px);display:flex;justify-content:center;gap:4px;z-index:5}
+.tabs button{flex:1;max-width:130px;border:none;background:transparent;color:var(--muted);font-size:14px;padding:8px 4px}
+.tabs button.on{color:var(--accent);background:var(--accent-soft)}
+.sosbtn{width:100%;min-height:58px;background:var(--surface);border:2px solid var(--wine);color:var(--wine);font-size:16px}
+.react{display:flex;gap:6px;flex-wrap:wrap}
+.comments{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:10;overflow:auto;padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+.overlay .inner{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.timer{font-size:64px;text-align:center;line-height:1.1}
+.check{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-size:15px}
+.check input{width:22px;height:22px;margin-top:2px;accent-color:var(--accent);flex:0 0 auto}
+.sosbanner{background:var(--wine);color:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.sosbanner button{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);color:#fff}
+.get{position:fixed;inset:0;z-index:30;background:rgba(10,20,24,.6);display:flex;align-items:center;justify-content:center;padding:24px}
+.get .box{background:var(--surface);border-radius:18px;padding:24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px;text-align:center;border:2px solid var(--gold)}
+.get .name{font-family:var(--display);font-size:28px;color:var(--gold);line-height:1.3}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 76px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:40;max-width:90%}
+code{font-size:13px;background:var(--bg);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+@media (prefers-reduced-motion: no-preference){ .get .box{animation:pop .35s ease-out} @keyframes pop{from{transform:scale(.85)}to{transform:scale(1)}} }
+</style>
+</head>
+<body>
+<div id="app"><div class="card"><h1>脱パンパン顔</h1><p class="muted">読み込み中…</p></div></div>
+<div id="overlay-root"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<script>
+"use strict";
+/* =========================================================
+   ここだけ書き換える：Supabase の Project URL と公開キー
+   （Supabase の Project Settings → API / API Keys に表示されています）
+   ========================================================= */
+const SUPABASE_URL = "https://yzwlccbniyzprooklkyq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_u3bf6_6PILibXUmqtFa1zA_GXQBoJwJ";
+
+/* ===== 計算の前提 ===== */
+const WINE_KCAL_PER_100ML = 73, ETHANOL_DENSITY = 0.8, BOTTLE_L = 1.5;
+const AMOUNT_L = {glass:0.12, half:0.75, full:1.5};
+const AMOUNT_LABEL = {glass:"ちょっと（1〜2杯）", half:"半本", full:"1本以上"};
+const DAY_BOUNDARY_HOURS = 4, SOS_MIN = 15, WITHDRAWAL_DAYS = 14, POLL_MS = 20000;
+const REACTIONS = ["顔が締まってきた","イケメン化進行中","お前なら出来る","明日取り返そ"];
+const CHEERS = ["耐えろ！","炭酸水いけ","電話しよか？"];
+
+/* ===== メンズコーチジョージの言葉（ファンのまとめサイト掲載のフレーズより） ===== */
+const G = {
+  kiki:   "男なら危機感を持て！",
+  dekiru: "お前なら出来る！",
+  atokaisu: "“あと数回”失敗すれば、お前は成功に辿り着く",
+  noise:  "全てノイズ",
+  tane:   "努力は全て“タネ埋め”でしか無い",
+  saiteki:"探すの辞めて、今の“最適解”を信じて突き進む。ただそれだけ。",
+  mama:   "どんな時も味方でいてくれるママだけは悲しませるな。",
+  ikemen: "お前はイケメンだよ。そう言い聞かせるべき。",
+  chikara:"お前ら力入りすぎ",
+  mikata: "お前は唯一の味方を裏切っている"
+};
+const DAILY = ["kiki","dekiru","tane","saiteki","ikemen","noise","chikara"];
+
+/* ===== 称号（一度取ったら消えない。飲んでも減らない） ===== */
+const TITLES = [
+  {id:"p1",  w:1,  name:"顔出し入門者",          need:"はじめて投稿する",              ok:x=>x.posted>=1},
+  {id:"c1",  w:2,  name:"シラフ見習い",          need:"シラフで1日勝つ",               ok:x=>x.clean>=1},
+  {id:"c3",  w:3,  name:"三日坊主を超えし者",    need:"シラフ累計3日",                 ok:x=>x.clean>=3},
+  {id:"s1",  w:4,  name:"15分の勇者",            need:"SOSで15分耐える",               ok:x=>x.held>=1},
+  {id:"r1",  w:5,  name:"不死鳥",                need:"飲んだ翌日にシラフで勝つ",      ok:x=>x.recover>=1},
+  {id:"p7",  w:6,  name:"毎日顔出す男",          need:"投稿7日分",                     ok:x=>x.posted>=7},
+  {id:"c7",  w:7,  name:"一週間の男",            need:"シラフ累計7日",                 ok:x=>x.clean>=7},
+  {id:"k3",  w:8,  name:"連勝ルーキー",          need:"3日連続シラフ",                 ok:x=>x.best>=3},
+  {id:"wk",  w:9,  name:"休日の覇者",            need:"土日を両方シラフで越える",      ok:x=>x.weekends>=1},
+  {id:"f10", w:10, name:"見られて磨かれる男",    need:"観客からの反応10回",            ok:x=>x.fans>=10},
+  {id:"c14", w:11, name:"むくみハンター",        need:"シラフ累計14日",                ok:x=>x.clean>=14},
+  {id:"s5",  w:12, name:"誘惑スレイヤー",        need:"SOSで5回耐える",                ok:x=>x.held>=5},
+  {id:"k7",  w:13, name:"止まらない男",          need:"7日連続シラフ",                 ok:x=>x.best>=7},
+  {id:"r3",  w:14, name:"何度でも立ち上がる男",  need:"不死鳥を3回",                   ok:x=>x.recover>=3},
+  {id:"c30", w:15, name:"顔面リニューアル",      need:"シラフ累計30日",                ok:x=>x.clean>=30},
+  {id:"s10", w:16, name:"スーパー素通り職人",    need:"SOSで10回耐える",               ok:x=>x.held>=10},
+  {id:"k21", w:17, name:"習慣化の鬼",            need:"21日連続シラフ",                ok:x=>x.best>=21},
+  {id:"f50", w:18, name:"モテの片鱗",            need:"観客からの反応50回",            ok:x=>x.fans>=50},
+  {id:"w4",  w:19, name:"週末を支配する男",      need:"シラフの週末を4回",             ok:x=>x.weekends>=4},
+  {id:"c60", w:20, name:"ワイン卒業生",          need:"シラフ累計60日",                ok:x=>x.clean>=60},
+  {id:"c90", w:21, name:"シラフ界の新人王",      need:"シラフ累計90日",                ok:x=>x.clean>=90},
+  {id:"c180",w:22, name:"伝説のシラフ",          need:"シラフ累計180日",               ok:x=>x.clean>=180},
+  {id:"c365",w:23, name:"男磨き殿堂入り",        need:"シラフ累計365日",               ok:x=>x.clean>=365}
+];
+
+/* ===== 状態 ===== */
+const S = {
+  code: lsGet("dpp_code") || "", auth: readAuth(),
+  data: null, loading:false, loadErr:null, photos:{},
+  tab:null, draft:null, settings:null, comment:{}, feedLimit:20, ba:50,
+  ob:{mode:null, name:"", pin:"", role:"challenger", start:null, pick:null}, sosOpen:null
+};
+
+/* ===== 小道具 ===== */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
+function readAuth(){ try{ const a=JSON.parse(lsGet("dpp_auth")||"null"); return a&&a.mid&&a.pin?a:null; }catch(e){ return null; } }
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => ymd(new Date(Date.now() - DAY_BOUNDARY_HOURS*3600e3));
+function addDays(s,n){ const [y,m,d]=s.split("-").map(Number); return ymd(new Date(y,m-1,d+n)); }
+function diffDays(a,b){ const [y1,m1,d1]=a.split("-").map(Number),[y2,m2,d2]=b.split("-").map(Number); return Math.round((Date.UTC(y2,m2-1,d2)-Date.UTC(y1,m1-1,d1))/864e5); }
+function md(s){ const [,m,d]=s.split("-").map(Number); return m+"/"+d; }
+function dow(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d).getDay(); }
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+const fmt = n => Math.round(n).toLocaleString("ja-JP");
+const quote = k => `<div class="quote"><q>${esc(G[k])}</q><cite>メンズコーチ ジョージ</cite></div>`;
+function toast(msg){ const r=document.getElementById("toast-root"); r.innerHTML='<div class="toast" role="status"></div>'; r.firstChild.textContent=msg; clearTimeout(toast.t); toast.t=setTimeout(()=>{r.innerHTML="";},2800); }
+
+/* ===== 通信（Supabase の関数を呼ぶだけ） ===== */
+async function rpc(fn, args){
+  const headers = {"Content-Type":"application/json", apikey:SUPABASE_KEY};
+  if(SUPABASE_KEY.startsWith("eyJ")) headers.Authorization = "Bearer "+SUPABASE_KEY;
+  let r;
+  try{ r = await fetch(SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/rpc/"+fn, {method:"POST", headers, body:JSON.stringify(args)}); }
+  catch(e){ const er=new Error("network"); er.code="network"; throw er; }
+  const text = await r.text(); let j=null; try{ j = text ? JSON.parse(text) : null; }catch(e){}
+  if(!r.ok){ const msg=(j&&(j.message||j.hint))||text||String(r.status); const er=new Error(msg);
+    er.code = /bad_code/.test(msg)?"bad_code":/bad_pin/.test(msg)?"bad_pin":/pin_short/.test(msg)?"pin_short":"server"; throw er; }
+  return j;
+}
+function errText(e){
+  switch(e && e.code){
+    case "bad_code": return "合言葉が違います。";
+    case "bad_pin":  return "暗証番号が違います。";
+    case "pin_short":return "暗証番号は4文字以上にしてください。";
+    case "network":  return "通信できませんでした。電波を確認して、もう一度押してください。";
+    default: return "保存できませんでした。時間をおいて、もう一度押してください。";
+  }
+}
+const A = () => ({p_code:S.code, p_mid:S.auth.mid, p_pin:S.auth.pin});
+async function load(){
+  if(S.loading) return; S.loading=true;
+  try{ S.data = await rpc("shirafu_load", {p_code:S.code}); S.loadErr=null;
+    if(S.auth && !S.data.members.some(m=>m.id===S.auth.mid)){ S.auth=null; lsSet("dpp_auth",null); }
+  }catch(e){
+    S.loadErr=e;
+    if(e.code==="bad_code"){ S.code=""; lsSet("dpp_code",null); S.data=null; }
+  }
+  S.loading=false; render(); checkNewTitles();
+}
+async function act(fn, args, okMsg){
+  try{ const r = await rpc(fn, args); if(okMsg) toast(okMsg); await load(); return r ?? true; }
+  catch(e){
+    if(e.code==="bad_pin"){ S.auth=null; lsSet("dpp_auth",null); render(); }
+    toast(errText(e)); return null;
+  }
+}
+
+/* ===== 計算 ===== */
+const members = () => S.data ? S.data.members : [];
+const memberById = id => members().find(m=>m.id===id) || null;
+const me = () => S.auth ? memberById(S.auth.mid) : null;
+function postsOf(mid){ return S.data.posts.filter(p=>p.mid===mid).sort((a,b)=>a.date<b.date?-1:1); }
+function postOn(mid,date){ return S.data.posts.find(p=>p.mid===mid && p.date===date) || null; }
+function dayNum(m,date){ return m.start ? diffDays(m.start,date)+1 : 0; }
+function stats(m){
+  const t = today();
+  const ps = m.start ? postsOf(m.id).filter(p=>p.date>=m.start && p.date<=t) : [];
+  const baseL = (Number(m.bottles)||0)*BOTTLE_L/7, abv=Number(m.abv)||12, price=Number(m.price)||0;
+  let savedL=0, clean=0, best=0, run=0, recover=0, prev=null;
+  const byDate = {}; ps.forEach(p=>byDate[p.date]=p);
+  for(const p of ps){
+    const a = p.drank ? (AMOUNT_L[p.amount] ?? AMOUNT_L.half) : 0;
+    savedL += Math.max(0, baseL - a);                       // 飲んだ日でもマイナスにはしない
+    if(!p.drank){ clean++; run = (prev && !prev.drank && diffDays(prev.date,p.date)===1) ? run+1 : 1; best=Math.max(best,run);
+      const y = byDate[addDays(p.date,-1)]; if(y && y.drank) recover++; }
+    else run = 0;
+    prev = p;
+  }
+  let streak=0, d = postOn(m.id,t) ? t : addDays(t,-1);
+  while(m.start && d>=m.start){ const p=postOn(m.id,d); if(p && !p.drank){ streak++; d=addDays(d,-1); } else break; }
+  let weekends=0; for(const p of ps){ if(dow(p.date)===6 && !p.drank){ const s=byDate[addDays(p.date,1)]; if(s && !s.drank) weekends++; } }
+  const held = S.data.sos.filter(s=>s.mid===m.id && s.result==="held").length;
+  const myPosts = new Set(postsOf(m.id).map(p=>p.id));
+  const mySos = new Set(S.data.sos.filter(s=>s.mid===m.id).map(s=>"sos-"+s.id));
+  const fans = S.data.reactions.filter(r=>r.mid!==m.id && (myPosts.has(r.target) || mySos.has(r.target))).length;
+  return { posted:ps.length, clean, best, streak, recover, weekends, held, fans,
+    yen: savedL*price/BOTTLE_L, g: savedL*1000*abv/100*ETHANOL_DENSITY, kcal: savedL*10*WINE_KCAL_PER_100ML };
+}
+function titlesOf(m){ const x=stats(m); return TITLES.filter(t=>t.ok(x)); }
+function topTitle(m){ const got=titlesOf(m); return got.length ? got.reduce((a,b)=>b.w>a.w?b:a) : null; }
+function withdrawal(m){
+  const t=today(); if(!m.start || t<m.start || diffDays(m.start,t)>=WITHDRAWAL_DAYS) return null;
+  const ps = postsOf(m.id).filter(p=>p.date>=m.start);
+  if(ps.some(p=>p.tremor)) return "danger";
+  let run=0, best=0, prev=null;
+  for(const p of ps){ const bad=p.sweat||p.insomnia; run = bad ? ((prev && diffDays(prev,p.date)===1 && run>0) ? run+1 : 1) : 0; best=Math.max(best,run); prev=p.date; }
+  return best>=3 ? "warn" : "early";
+}
+function activeSos(){ const now=Date.now(); return S.data.sos.filter(s=>!s.result && now < s.ts + SOS_MIN*60e3 + 30*60e3); }
+
+/* ===== 称号ゲット演出 ===== */
+function checkNewTitles(){
+  const m = me(); if(!m || m.role!=="challenger" || !S.data) return;
+  const key = "dpp_titles_"+m.id, raw = lsGet(key);
+  const got = titlesOf(m).map(t=>t.id);
+  if(raw===null){ lsSet(key, JSON.stringify(got)); return; }
+  let seen=[]; try{ seen=JSON.parse(raw)||[]; }catch(e){}
+  const fresh = TITLES.filter(t=>got.includes(t.id) && !seen.includes(t.id));
+  lsSet(key, JSON.stringify([...new Set([...seen,...got])]));
+  if(!fresh.length) return;
+  const t = fresh.reduce((a,b)=>b.w>a.w?b:a);
+  document.getElementById("modal-root").innerHTML = `<div class="get" role="dialog" aria-modal="true" aria-labelledby="get-n"><div class="box">
+    <span class="muted small">称号ゲット${fresh.length>1?`（ほか${fresh.length-1}個）`:""}</span>
+    <span class="name" id="get-n">${esc(t.name)}</span><span class="muted small">${esc(t.need)}</span>
+    ${quote("dekiru")}<button class="primary" data-act="close-modal">押忍</button></div></div>`;
+}
+
+/* ===== 顔アバター ===== */
+function faceSvg(clean){
+  const p = Math.max(0, 1 - clean/30), rx = 44 + 20*p, ry = 54 + 4*p, cheek = 6 + 10*p, eye = 3.2 + 1.2*(1-p);
+  return `<svg viewBox="0 0 140 124" width="120" height="106" role="img" aria-label="顔アバター（シラフ${clean}日分の引き締まり具合）">
+    <ellipse cx="70" cy="64" rx="${rx}" ry="${ry}" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"/>
+    <circle cx="${70-rx*0.62}" cy="76" r="${cheek}" fill="var(--wine)" opacity="${0.12+0.28*p}"/>
+    <circle cx="${70+rx*0.62}" cy="76" r="${cheek}" fill="var(--wine)" opacity="${0.12+0.28*p}"/>
+    <ellipse cx="55" cy="58" rx="${eye}" ry="${eye*(1-0.45*p)}" fill="var(--ink)"/>
+    <ellipse cx="85" cy="58" rx="${eye}" ry="${eye*(1-0.45*p)}" fill="var(--ink)"/>
+    <path d="M 58 ${88+2*p} Q 70 ${96-6*p} 82 ${88+2*p}" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ===== 写真 ===== */
+async function compress(file, size=360, q=0.72){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = new Image();
+    await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
+    const s = Math.min(img.naturalWidth, img.naturalHeight);
+    const c = document.createElement("canvas"); c.width=c.height=size;
+    c.getContext("2d").drawImage(img,(img.naturalWidth-s)/2,(img.naturalHeight-s)/2,s,s,0,0,size,size);
+    return c.toDataURL("image/jpeg", q);
+  } finally { URL.revokeObjectURL(url); }
+}
+function photoFor(postId){
+  if(S.photos[postId]===undefined && S.auth){
+    S.photos[postId]="loading";
+    rpc("shirafu_photo", {...A(), p_post_id:postId}).then(v=>{
+      S.photos[postId] = v==="hidden" ? "hidden" : (typeof v==="string" && v.startsWith("data:image/jpeg")) ? v : "none"; render();
+    }).catch(()=>{ S.photos[postId]="none"; render(); });
+  }
+  return S.photos[postId];
+}
+function imgHtml(postId, cls="photo"){
+  const v = photoFor(postId);
+  if(v==="loading") return cls==="thumb" ? "" : `<div class="ph-empty">写真を読み込み中…</div>`;
+  if(v==="hidden") return `<div class="ph-empty">この顔は、本人が見せない設定にしています</div>`;
+  if(!v || v==="none") return cls==="thumb" ? "" : `<div class="ph-empty">写真なし</div>`;
+  return `<img class="${cls}" src="${esc(v)}" alt="">`;
+}
+
+/* ===== 画面 ===== */
+function view(){
+  if(!SUPABASE_URL || !SUPABASE_KEY) return `<div class="stack"><h1>脱パンパン顔</h1><div class="card"><h2>まだ接続先が設定されていません</h2>
+    <p class="muted">index.html の先頭にある <code>SUPABASE_URL</code> と <code>SUPABASE_KEY</code> に、Supabase のプロジェクトURLと公開キーを入れてください。</p></div></div>`;
+  if(!S.code) return codeView();
+  if(!S.data) return `<div class="stack"><h1>脱パンパン顔</h1><div class="card"><p class="muted">${S.loadErr?esc(errText(S.loadErr)):"読み込み中…"}</p>
+    ${S.loadErr?`<button data-act="reload">もう一度読み込む</button>`:""}</div></div>`;
+  if(!me()) return onboarding();
+  const m = me();
+  if(!S.tab) S.tab = m.role==="challenger" ? "home" : "feed";
+  if(S.tab==="home" && m.role!=="challenger") S.tab="feed";
+  const body = S.tab==="home" ? homeView(m) : S.tab==="titles" ? titlesView(m) : S.tab==="settings" ? settingsView(m) : feedView(m);
+  const tabs = [m.role==="challenger"?["home","じぶん"]:null, ["feed","みんな"], ["titles","称号"], ["settings","設定"]].filter(Boolean);
+  return body + `<nav class="tabs" aria-label="画面切り替え">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?"on":""}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("")}</nav>`;
+}
+
+function codeView(){
+  if(S.needsSetup) return `<div class="stack"><div class="stack" style="gap:6px"><h1>脱パンパン顔</h1>
+    <p class="muted">最初の1回だけ、仲間内で使う合言葉を決めてください。決めた合言葉は、URLと一緒に仲間へ伝えます。</p></div>
+    <form class="card" data-form="init"><h2>合言葉を決める</h2>
+      <label class="f" for="init-in">合言葉（4文字以上）<input id="init-in" type="text" autocomplete="off" minlength="4" required></label>
+      <button class="primary" type="submit">この合言葉で始める</button></form></div>`;
+  return `<div class="stack"><div class="stack" style="gap:6px"><h1>脱パンパン顔</h1>
+    <p class="muted">毎日の顔を仲間に見せて、ワインと縁を切る男たちの場所。</p></div>
+    ${quote("kiki")}
+    <form class="card" data-form="code"><h2>合言葉を入れる</h2>
+      <label class="f" for="code-in">仲間から教えてもらった合言葉<input id="code-in" type="password" autocomplete="off" required></label>
+      <button class="primary" type="submit">入る</button>
+      ${S.loadErr && S.loadErr.code==="bad_code" ? `<p class="muted small" role="alert">合言葉が違います。</p>` : ""}
+    </form></div>`;
+}
+
+function onboarding(){
+  const list = members(), ob = S.ob; if(!ob.start) ob.start = addDays(today(),1);
+  if(ob.mode==="login"){
+    const m = memberById(ob.pick);
+    return `<div class="stack"><h1>おかえり、${esc(m?m.name:"")}</h1>
+      <form class="card" data-form="login"><label class="f" for="pin-in">暗証番号<input id="pin-in" type="password" inputmode="numeric" autocomplete="off" required></label>
+      <button class="primary" type="submit">ログイン</button><button type="button" class="ghost" data-act="ob-back">戻る</button></form></div>`;
+  }
+  return `<div class="stack">
+    <div class="stack" style="gap:6px"><h1>脱パンパン顔</h1><p class="muted">ここは、パンパンの顔を毎日さらして、シュッとした顔を取り戻す場所です。</p></div>
+    ${list.length?`<div class="card"><h2>もう登録している人</h2><p class="muted small">自分の名前を押して、暗証番号でログイン。</p>
+      <div class="row">${list.map(x=>`<button data-act="pick" data-v="${esc(x.id)}">${esc(x.name)}</button>`).join("")}</div></div>`:""}
+    <form class="card" data-form="join"><h2>はじめての人</h2>
+      <label class="f" for="ob-name">表示名<input id="ob-name" type="text" maxlength="20" placeholder="例：まなと" value="${esc(ob.name)}" data-ob="name" required></label>
+      <label class="f" for="ob-pin">暗証番号（4文字以上。別のスマホでログインするときに使う）<input id="ob-pin" type="password" inputmode="numeric" minlength="4" autocomplete="off" value="${esc(ob.pin)}" data-ob="pin" required></label>
+      <div class="stack" style="gap:6px"><span class="muted small">あなたは？</span><div class="row">
+        <button type="button" class="chip ${ob.role==="challenger"?"on":""}" data-act="ob-role" data-v="challenger">パンパン顔を卒業する側</button>
+        <button type="button" class="chip ${ob.role==="watcher"?"on":""}" data-act="ob-role" data-v="watcher">見守って煽る側</button></div></div>
+      ${ob.role==="challenger"?`<label class="f" for="ob-start">スタート日<input id="ob-start" type="date" value="${esc(ob.start)}" data-ob="start"></label>`:""}
+      <button class="primary" type="submit">はじめる</button></form></div>`;
+}
+
+function homeView(m){
+  const t = today(), st = stats(m), before = !m.start || t < m.start, wd = withdrawal(m);
+  const yest = postOn(m.id, addDays(t,-1)), todayPost = postOn(m.id,t);
+  const weekendMorning = (dow(t)===0||dow(t)===6) && new Date().getHours()<13 && !todayPost;
+  const top = topTitle(m), got = titlesOf(m).length, next = TITLES.find(x=>!titlesOf(m).includes(x));
+  const alerts = [];
+  if(wd==="danger") alerts.push(`<div class="alert danger" role="alert"><b>手の震えが記録されています</b><p>離脱症状の可能性があります。今日中にアルコール外来か内科を受診してください。けいれん、幻覚、意識がぼんやりする場合は迷わず119番へ。</p></div>`);
+  else if(wd==="warn") alerts.push(`<div class="alert warn" role="alert"><b>寝汗・不眠が3日以上続いています</b><p>離脱症状が続いているサインです。受診先に連絡して、薬で楽にできないか相談してください。</p></div>`);
+  else if(wd==="early" && !before) alerts.push(`<div class="alert info"><b>最初の2週間は、体が慣れる時期</b><p>寝汗や眠れない夜が出やすい時期です。手の震え・幻覚・けいれんがあれば、すぐ受診（けいれんは119番）。</p></div>`);
+  let q = DAILY[(diffDays("2026-01-01",t)%DAILY.length+DAILY.length)%DAILY.length];
+  if(yest && yest.drank && !before){ alerts.push(`<div class="alert warn"><b>リカバリークエスト</b><p>昨日は飲んだ日。今日をシラフで終えると、称号「不死鳥」に近づきます。累計も称号も、何ひとつ減っていません。</p></div>`); q="atokaisu"; }
+  if(weekendMorning && !before){ alerts.push(`<div class="alert info"><b>休日の朝ミッション</b><p>スーパーに行く前に、まず今日の顔を投稿。炭酸水を1本飲めたら完璧。</p></div>`); q="kiki"; }
+  return `<div class="stack">
+    <div class="row between"><h1>脱パンパン顔</h1>${top?`<span class="pill title">${esc(top.name)}</span>`:""}</div>
+    <div class="card">
+      <div class="hero">${faceSvg(st.clean)}
+        <div class="stack" style="gap:4px">
+          ${before?`<span class="muted small">卒業スタートまで</span><span class="num day">あと${m.start?diffDays(t,m.start):"?"}日</span><span class="muted small">${m.start?md(m.start)+" から Day 1":"設定でスタート日を決めてください"}</span>`
+          :`<span class="muted small">${esc(m.name)} の卒業チャレンジ</span><span class="num day">Day ${dayNum(m,t)}</span>
+            <span class="small">シラフで勝った日 <b class="num">${st.clean}</b> ・ 連勝中 <b class="num">${st.streak}</b></span>`}
+        </div></div>
+      <div class="stats">
+        <div class="stat"><span class="muted">ワインに貢がずに済んだ額</span><span class="num">${yen(st.yen)}</span></div>
+        <div class="stat"><span class="muted">肝臓が休めた純アルコール</span><span class="num">${fmt(st.g)}g</span></div>
+        <div class="stat"><span class="muted">顔に乗らなかったカロリー</span><span class="num">${fmt(st.kcal)}</span><span class="muted">kcal</span></div>
+      </div>
+      <button class="ghost" data-act="tab" data-v="titles" style="justify-content:space-between"><span>称号 ${got}/${TITLES.length}</span><span class="muted small">${next?"次は「"+esc(next.name)+"」："+esc(next.need):"全部取った。殿堂入り"}</span></button>
+    </div>
+    ${quote(q)}
+    ${alerts.join("")}
+    ${checkinView(m)}
+    <button class="sosbtn" data-act="sos-start">スーパーに吸い寄せられそう（SOS）</button>
+    ${beforeAfterView(m)}
+  </div>`;
+}
+
+function startDraft(m, date){
+  const p = postOn(m.id, date);
+  S.draft = { mid:m.id, date, photo:null, drank: p? p.drank : null, amount: p? p.amount||null : null, urge: p? p.urge : null,
+    sweat: !!(p&&p.sweat), insomnia: !!(p&&p.insomnia), tremor: !!(p&&p.tremor), editing:false, saving:false };
+}
+function checkinView(m){
+  const t = today();
+  if(!S.draft || S.draft.mid!==m.id) startDraft(m, t);
+  const d = S.draft, label = d.date===t ? "今日" : "昨日", existing = postOn(m.id, d.date);
+  if(existing && !d.editing){
+    return `<div class="card"><div class="row between"><h2>${label}の顔、提出済み</h2>
+      <span class="pill ${existing.drank?"drank":"clean"}">${existing.drank?"飲んだ（"+esc(AMOUNT_LABEL[existing.amount]||"")+"）":"シラフで勝利"}</span></div>
+      <div class="row">${existing.hasPhoto?imgHtml(existing.id,"thumb"):""}<span class="muted small">飲みたい度 ${existing.urge}/5</span></div>
+      <div class="row"><button data-act="edit">やり直す</button><button class="ghost" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分を記録":"今日に戻る"}</button></div></div>`;
+  }
+  const early = m.start && d.date>=m.start && diffDays(m.start, d.date) < WITHDRAWAL_DAYS;
+  return `<div class="card">
+    <div class="row between"><h2>${label}（${md(d.date)}）の顔を提出</h2>
+      <button class="ghost chip" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分":"今日の分"}</button></div>
+    <div class="row">
+      ${d.photo?`<img class="thumb" src="${esc(d.photo)}" alt="撮った顔写真">`:""}
+      <label class="btn" for="cam" style="flex:1">${d.photo?"撮り直す":"① 顔を撮る"}</label>
+      <input id="cam" type="file" accept="image/*" capture="user" data-act="photo" style="position:absolute;width:1px;height:1px;opacity:0">
+    </div>
+    <div class="row">
+      <button class="big ${d.drank===false?"primary":""}" data-act="drank" data-v="no">② シラフで勝った</button>
+      <button class="big ${d.drank===true?"wine":""}" data-act="drank" data-v="yes">飲んだ<br><span class="small">（物語の途中）</span></button>
+    </div>
+    ${d.drank===true?`<div class="row">${Object.entries(AMOUNT_LABEL).map(([k,l])=>`<button class="chip ${d.amount===k?"on on-wine":""}" data-act="amount" data-v="${k}">${l}</button>`).join("")}</div>`:""}
+    ${early?`<div class="stack" style="gap:6px"><span class="muted small">体のチェック（当てはまるものだけ）</span><div class="row">
+      ${[["sweat","寝汗"],["insomnia","眠れない"],["tremor","手の震え"]].map(([k,l])=>`<button class="chip ${d[k]?"on on-wine":""}" data-act="sym" data-v="${k}" aria-pressed="${d[k]}">${l}</button>`).join("")}</div></div>`:""}
+    <div class="stack" style="gap:6px"><span class="muted small">③ 今日の飲みたい度（押したら提出）</span>
+      <div class="row">${[1,2,3,4,5].map(n=>`<button class="chip ${d.urge===n?"on":""}" style="flex:1" data-act="urge" data-v="${n}" ${d.drank===null||(d.drank&&!d.amount)||d.saving?"disabled":""}>${n}</button>`).join("")}</div>
+      <span class="muted small">1＝ワインって何？ ／ 5＝もう限界</span></div>
+    ${d.editing?`<button class="ghost" data-act="cancel-edit">やめる</button>`:""}
+  </div>`;
+}
+
+function beforeAfterView(m){
+  const ps = postsOf(m.id).filter(p=>p.hasPhoto);
+  if(ps.length<2) return `<div class="card"><h2>Before / After</h2><p class="muted small">顔写真が2日分たまると、最初の顔と最新の顔をスライドで比べられます。</p></div>`;
+  const a = ps[0], b = ps[ps.length-1], va = photoFor(a.id), vb = photoFor(b.id);
+  const ok = v => v && v.startsWith && v.startsWith("data:");
+  if(!ok(va)||!ok(vb)) return `<div class="card"><h2>Before / After</h2><p class="muted small">写真を読み込み中…</p></div>`;
+  return `<div class="card"><h2>Before / After</h2>
+    <div class="ba"><img src="${esc(vb)}" alt="最新の顔"><img id="ba-top" src="${esc(va)}" alt="最初の顔" style="clip-path:inset(0 ${100-S.ba}% 0 0)">
+      <span class="lbl" style="left:8px">Day ${dayNum(m,a.date)}</span><span class="lbl" style="right:8px">Day ${dayNum(m,b.date)}</span></div>
+    <label class="f" for="ba-range">スライドして比べる<input id="ba-range" type="range" min="0" max="100" value="${S.ba}" data-act="ba"></label>
+    ${quote("ikemen")}</div>`;
+}
+
+function feedView(viewer){
+  const sos = activeSos();
+  const visible = S.data.posts.filter(p=>memberById(p.mid)).sort((a,b)=>b.ts-a.ts);
+  const shown = visible.slice(0, S.feedLimit);
+  const sosHtml = sos.map(s=>{
+    const who = memberById(s.mid); if(!who) return "";
+    const left = Math.max(0, Math.ceil((s.ts + SOS_MIN*60e3 - Date.now())/60e3));
+    const cheers = S.data.reactions.filter(r=>r.target==="sos-"+s.id);
+    return `<div class="sosbanner" role="alert"><b>${esc(who.name)} がスーパーに吸い寄せられています${left?`（残り約${left}分）`:""}</b>
+      <p class="small">今まさにワインと戦闘中。一言で援護してください。</p>
+      ${cheers.length?`<div class="comments">${cheers.map(r=>`<span><b>${esc(memberById(r.mid)?.name||"だれか")}</b>：${esc(r.comment||r.kind)}</span>`).join("")}</div>`:""}
+      ${s.mid===viewer.id?"":`<div class="react">${CHEERS.map(k=>`<button class="chip" data-act="cheer" data-v="${esc(s.id)}" data-k="${esc(k)}">${esc(k)}</button>`).join("")}</div>`}
+    </div>`;
+  }).join("");
+  return `<div class="stack">
+    <div class="row between"><h1>みんなの顔</h1><span class="muted small">${members().length}人が参加</span></div>
+    ${sosHtml}
+    ${shown.length?shown.map(p=>postCard(p, viewer)).join(""):`<div class="card"><p class="muted">まだ誰も顔を出していません。</p>${quote("kiki")}</div>`}
+    ${visible.length>S.feedLimit?`<button data-act="more">もっと見る</button>`:""}
+  </div>`;
+}
+function postCard(p, viewer){
+  const m = memberById(p.mid), top = topTitle(m), own = p.mid===viewer.id;
+  const rs = S.data.reactions.filter(r=>r.target===p.id), mine = rs.find(r=>r.mid===viewer.id);
+  const counts = {}; rs.forEach(r=>{ if(r.kind) counts[r.kind]=(counts[r.kind]||0)+1; });
+  const comments = rs.filter(r=>r.comment);
+  return `<article class="card">
+    <div class="row between" style="flex-wrap:nowrap"><div class="stack" style="gap:2px;min-width:0"><h3>${esc(m.name)}</h3>
+      <span class="muted small">${md(p.date)} ・ Day ${dayNum(m,p.date)}</span>${top?`<span><span class="pill title">${esc(top.name)}</span></span>`:""}</div>
+      <span class="pill ${p.drank?"drank":"clean"}">${p.drank?"飲んだ（物語の途中）":"シラフで勝利"}</span></div>
+    ${p.hasPhoto ? imgHtml(p.id) : ""}
+    <span class="muted small">飲みたい度 ${p.urge}/5${p.drank&&p.amount?" ・ "+esc(AMOUNT_LABEL[p.amount]):""}</span>
+    <div class="react">${REACTIONS.map(k=>`<button class="chip ${mine&&mine.kind===k?"on":""}" data-act="react" data-v="${esc(p.id)}" data-k="${esc(k)}" ${own?"disabled":""} aria-pressed="${!!(mine&&mine.kind===k)}">${esc(k)}${counts[k]?` ${counts[k]}`:""}</button>`).join("")}</div>
+    ${comments.length?`<div class="comments">${comments.map(r=>`<span><b>${esc(memberById(r.mid)?.name||"だれか")}</b>：${esc(r.comment)}</span>`).join("")}</div>`:""}
+    ${own?"":`<form class="row" data-form="comment" data-v="${esc(p.id)}" style="flex-wrap:nowrap"><input id="c-${esc(p.id)}" type="text" maxlength="80" placeholder="ひとこと煽る・褒める" value="${esc(S.comment[p.id]??"")}" data-comment="${esc(p.id)}"><button type="submit">送る</button></form>`}
+  </article>`;
+}
+
+function titlesView(viewer){
+  const challengers = members().filter(m=>m.role==="challenger");
+  const target = S.titleOf && memberById(S.titleOf) ? memberById(S.titleOf) : (viewer.role==="challenger" ? viewer : challengers[0]);
+  if(!target) return `<div class="stack"><h1>称号</h1><div class="card"><p class="muted">まだチャレンジャーがいません。</p></div></div>`;
+  const got = titlesOf(target).map(t=>t.id);
+  return `<div class="stack"><div class="row between"><h1>称号</h1><span class="num">${got.length}/${TITLES.length}</span></div>
+    ${challengers.length>1?`<div class="row">${challengers.map(c=>`<button class="chip ${c.id===target.id?"on":""}" data-act="title-of" data-v="${esc(c.id)}">${esc(c.name)}</button>`).join("")}</div>`:""}
+    <p class="muted small">クリアするたびに増えていきます。一度取った称号は、飲んでも消えません。</p>
+    <div class="titles">${TITLES.map(t=>{ const ok=got.includes(t.id);
+      return `<div class="tt ${ok?"got":""}"><b>${ok?esc(t.name):"？？？"}</b><span>${esc(t.need)}</span></div>`; }).join("")}</div>
+    ${quote("saiteki")}</div>`;
+}
+
+function settingsView(m){
+  if(!S.settings || S.settings.id!==m.id) S.settings = {id:m.id, name:m.name, role:m.role, start:m.start||addDays(today(),1), price:m.price??800, bottles:m.bottles??4.5, abv:m.abv??12, hideFrom:[...(m.hideFrom||[])]};
+  const s = S.settings, others = members().filter(x=>x.id!==m.id);
+  return `<div class="stack"><h1>設定</h1>
+    <div class="card">
+      <label class="f" for="s-name">表示名<input id="s-name" type="text" maxlength="20" value="${esc(s.name)}" data-set="name"></label>
+      <div class="stack" style="gap:6px"><span class="muted small">あなたは？</span><div class="row">
+        <button class="chip ${s.role==="challenger"?"on":""}" data-act="s-role" data-v="challenger">卒業する側</button>
+        <button class="chip ${s.role==="watcher"?"on":""}" data-act="s-role" data-v="watcher">見守って煽る側</button></div></div>
+    </div>
+    ${s.role==="challenger"?`<div class="card"><h2>計算の前提</h2>
+      <label class="f" for="s-start">スタート日<input id="s-start" type="date" value="${esc(s.start)}" data-set="start"></label>
+      <label class="f" for="s-price">1.5Lボトル1本の値段（円）<input id="s-price" type="number" inputmode="numeric" min="0" value="${esc(s.price)}" data-set="price"></label>
+      <label class="f" for="s-bottles">これまで週に飲んでいた本数<input id="s-bottles" type="number" inputmode="decimal" step="0.5" min="0" value="${esc(s.bottles)}" data-set="bottles"></label>
+      <label class="f" for="s-abv">度数（%）<input id="s-abv" type="number" inputmode="decimal" step="0.5" min="0" value="${esc(s.abv)}" data-set="abv"></label>
+      <p class="muted small">「これまでの1日平均 − その日に飲んだ量」で計算（ワイン100mlあたり73kcal、朝4時までは前日扱い）。飲んだ日でもマイナスにはなりません。</p></div>
+    <div class="card"><h2>顔写真を見せない人</h2><p class="muted small">選んだ人には、あなたの顔写真が届きません（サーバー側で止めます）。</p>
+      ${others.length?`<div class="row">${others.map(o=>`<button class="chip ${s.hideFrom.includes(o.id)?"on on-wine":""}" data-act="s-hide" data-v="${esc(o.id)}" aria-pressed="${s.hideFrom.includes(o.id)}">${esc(o.name)}</button>`).join("")}</div>`:`<p class="muted small">まだ他の参加者がいません。</p>`}
+    </div>`:""}
+    <button class="primary" data-act="s-save">保存する</button>
+    <div class="card"><h2>観客を増やす</h2><p class="muted small">このページのURLと合言葉を、LINEなどで送るだけ。相手はアカウント登録なしで、名前と暗証番号を決めれば参加できます。</p>
+      <button data-act="copy-link">URLをコピー</button></div>
+    <button class="ghost" data-act="logout">この端末からログアウト</button>
+  </div>`;
+}
+
+/* ===== SOS ===== */
+let sosTimer=null;
+function openSos(s){
+  const quests = ["炭酸水を1本、一気に飲む","財布を置いて、玄関から離れる","観客にLINEで「今やばい」と送る","友達とゲームを起動する"];
+  const lineText = encodeURIComponent("今、ワイン買いに行きたくてやばい。15分耐えるから何か送って（脱パンパン顔）");
+  document.getElementById("overlay-root").innerHTML = `<div class="overlay" role="dialog" aria-modal="true" aria-labelledby="sos-h"><div class="inner">
+    <h1 id="sos-h">15分だけ耐える</h1>
+    <p class="muted">飲みたい波は、15〜20分でピークを越えることが多いです。タイマーが0になるまで、どれか1つやってみてください。</p>
+    ${quote("dekiru")}
+    <div class="card"><span class="num timer" id="sos-time">15:00</span><p class="muted small" style="text-align:center">観客のタイムラインに「SOS中」と出ています</p></div>
+    <div class="stack" style="gap:8px">${quests.map((q,i)=>`<label class="check" for="q${i}"><input id="q${i}" type="checkbox"> <span>${q}</span></label>`).join("")}</div>
+    <a class="btn" href="https://line.me/R/share?text=${lineText}" target="_blank" rel="noopener">LINEで観客に助けを呼ぶ</a>
+    ${quote("noise")}
+    <button class="primary" id="sos-held" data-act="sos-end" data-v="held" disabled>15分耐えた</button>
+    <button class="ghost" data-act="sos-end" data-v="calm">落ち着いたので終わる</button>
+    <button class="ghost" data-act="sos-end" data-v="drank">飲んでしまった（記録だけして戻る）</button>
+  </div></div>`;
+  const end = s.ts + SOS_MIN*60e3;
+  const tick = ()=>{ const el=document.getElementById("sos-time"); if(!el){ clearInterval(sosTimer); return; }
+    const left=Math.max(0,end-Date.now()); el.textContent = pad(Math.floor(left/60e3))+":"+pad(Math.floor(left%60e3/1e3));
+    if(left<=0){ document.getElementById("sos-held").disabled=false; clearInterval(sosTimer); } };
+  clearInterval(sosTimer); tick(); sosTimer=setInterval(tick,1000); S.sosOpen=s.id;
+}
+function closeSos(){ clearInterval(sosTimer); document.getElementById("overlay-root").innerHTML=""; S.sosOpen=null; }
+
+/* ===== 操作 ===== */
+document.addEventListener("click", async ev=>{
+  const el = ev.target.closest("[data-act]"); if(!el || el.disabled) return;
+  const a = el.dataset.act, v = el.dataset.v, m = me();
+  if(a==="photo"||a==="ba") return;
+  switch(a){
+    case "tab": S.tab=v; window.scrollTo(0,0); break;
+    case "reload": load(); return;
+    case "ob-role": S.ob.role=v; break;
+    case "pick": S.ob.mode="login"; S.ob.pick=v; break;
+    case "ob-back": S.ob.mode=null; break;
+    case "drank": S.draft.drank = v==="yes"; if(!S.draft.drank) S.draft.amount=null; break;
+    case "amount": S.draft.amount=v; break;
+    case "sym": S.draft[v]=!S.draft[v]; break;
+    case "urge": S.draft.urge=Number(v); return savePost();
+    case "edit": S.draft.editing=true; break;
+    case "cancel-edit": startDraft(m, S.draft.date); break;
+    case "date": startDraft(m, v==="y"?addDays(today(),-1):today()); break;
+    case "react": return react(v, el.dataset.k);
+    case "cheer": return act("shirafu_react", {...A(), p_target:"sos-"+v, p_kind:el.dataset.k, p_comment:el.dataset.k}, "援護しました");
+    case "more": S.feedLimit+=20; break;
+    case "title-of": S.titleOf=v; break;
+    case "s-role": S.settings.role=v; break;
+    case "s-hide": { const h=S.settings.hideFrom, i=h.indexOf(v); if(i>=0) h.splice(i,1); else h.push(v); break; }
+    case "s-save": return saveSettings();
+    case "copy-link": try{ await navigator.clipboard.writeText(location.href.split("#")[0]); toast("URLをコピーしました。合言葉は別で伝えてください"); }catch(e){ toast("コピーできませんでした。アドレスバーのURLを送ってください"); } return;
+    case "logout": S.auth=null; lsSet("dpp_auth",null); S.tab=null; S.draft=null; S.settings=null; S.ob.mode=null; break;
+    case "close-modal": document.getElementById("modal-root").innerHTML=""; return;
+    case "sos-start": return startSos();
+    case "sos-end": return endSos(v);
+  }
+  render();
+});
+document.addEventListener("input", ev=>{
+  const t = ev.target;
+  if(t.dataset.ob) S.ob[t.dataset.ob]=t.value;
+  else if(t.dataset.set) S.settings[t.dataset.set]=t.value;
+  else if(t.dataset.comment) S.comment[t.dataset.comment]=t.value;
+  else if(t.dataset.act==="ba"){ S.ba=Number(t.value); const top=document.getElementById("ba-top"); if(top) top.style.clipPath=`inset(0 ${100-S.ba}% 0 0)`; }
+});
+document.addEventListener("change", async ev=>{
+  const t = ev.target;
+  if(t.dataset.act==="photo" && t.files && t.files[0]){
+    try{ S.draft.photo = await compress(t.files[0]); }catch(e){ toast("写真を読み込めませんでした。別の写真で試してください。"); }
+    render();
+  }
+});
+document.addEventListener("submit", async ev=>{
+  const f = ev.target.closest("[data-form]"); if(!f) return; ev.preventDefault();
+  const kind = f.dataset.form;
+  if(kind==="code"){
+    const c = document.getElementById("code-in").value.trim(); if(!c) return;
+    try{ const ok = await rpc("shirafu_check", {p_code:c});
+      if(ok){ S.code=c; lsSet("dpp_code",c); S.loadErr=null; render(); load(); } else { S.loadErr={code:"bad_code"}; render(); } }
+    catch(e){ toast(errText(e)); }
+  }
+  if(kind==="init"){
+    const c = document.getElementById("init-in").value.trim(); if(c.length<4){ toast("合言葉は4文字以上にしてください"); return; }
+    try{ await rpc("shirafu_init_code", {p_code:c}); S.needsSetup=false; S.code=c; lsSet("dpp_code",c); render(); load(); toast("合言葉を設定しました。仲間に伝えてください"); }
+    catch(e){ toast(/already_set/.test(e.message) ? "合言葉はすでに設定済みです" : errText(e)); S.needsSetup=false; render(); }
+  }
+  if(kind==="login"){
+    const pin = document.getElementById("pin-in").value;
+    try{ await rpc("shirafu_login", {p_code:S.code, p_mid:S.ob.pick, p_pin:pin}); setAuth(S.ob.pick, pin); }
+    catch(e){ toast(errText(e)); }
+  }
+  if(kind==="join"){
+    const ob=S.ob, name=ob.name.trim();
+    if(!name){ toast("表示名を入れてください"); return; }
+    if(ob.pin.length<4){ toast("暗証番号は4文字以上にしてください"); return; }
+    try{ const id = await rpc("shirafu_join", {p_code:S.code, p_name:name, p_pin:ob.pin, p_role:ob.role, p_start: ob.role==="challenger" ? (ob.start||addDays(today(),1)) : null});
+      setAuth(id, ob.pin); }
+    catch(e){ toast(errText(e)); }
+  }
+  if(kind==="comment"){
+    const target=f.dataset.v, text=(S.comment[target]||"").trim(); if(!text) return;
+    const cur=S.data.reactions.find(r=>r.target===target && r.mid===S.auth.mid);
+    if(await act("shirafu_react", {...A(), p_target:target, p_kind:cur?cur.kind:null, p_comment:text}, "送りました")){ S.comment[target]=""; render(); }
+  }
+});
+function setAuth(mid, pin){ S.auth={mid,pin}; lsSet("dpp_auth", JSON.stringify(S.auth)); S.ob={mode:null,name:"",pin:"",role:"challenger",start:null,pick:null}; S.tab=null; S.draft=null; load(); }
+
+async function savePost(){
+  const m=me(), d=S.draft; if(d.saving) return;
+  d.saving=true; render();
+  const id = await act("shirafu_save_post", {...A(), p_date:d.date, p_drank:!!d.drank, p_amount:d.drank?d.amount:null, p_urge:d.urge,
+    p_sweat:d.sweat, p_insomnia:d.insomnia, p_tremor:d.tremor, p_photo:d.photo||null},
+    d.drank ? "記録しました。物語はまだ途中です" : "提出完了。今日もシラフで勝利");
+  if(id && typeof id==="string" && d.photo) S.photos[id]=d.photo;
+  d.saving=false;
+  if(id) startDraft(m, d.date);
+  render();
+}
+async function react(target, kind){
+  const cur = S.data.reactions.find(r=>r.target===target && r.mid===S.auth.mid);
+  const newKind = cur && cur.kind===kind ? null : kind;
+  await act("shirafu_react", {...A(), p_target:target, p_kind:newKind, p_comment:cur?cur.comment:null});
+}
+async function startSos(){
+  const m=me(), open = S.data.sos.find(s=>s.mid===m.id && !s.result && Date.now() < s.ts+SOS_MIN*60e3);
+  if(open) return openSos(open);
+  const id = await act("shirafu_sos_start", A());
+  if(id) openSos({id, ts:Date.now()});
+}
+async function endSos(result){
+  const id=S.sosOpen; closeSos();
+  if(id) await act("shirafu_sos_end", {...A(), p_id:id, p_result:result}, result==="held" ? "15分耐えた。お前なら出来ると思ってた" : null);
+  if(result==="drank"){ const m=me(); startDraft(m,today()); S.draft.drank=true; S.draft.editing=true; S.tab="home"; render(); toast("量だけ記録しよう。称号は1つも減りません"); }
+}
+async function saveSettings(){
+  const s=S.settings, name=s.name.trim(); if(!name){ toast("表示名を入れてください"); return; }
+  const ok = await act("shirafu_update_member", {...A(), p_name:name, p_role:s.role, p_start: s.role==="challenger" ? (s.start||addDays(today(),1)) : null,
+    p_price:Number(s.price)||0, p_bottles:Number(s.bottles)||0, p_abv:Number(s.abv)||12, p_hide:s.hideFrom}, "保存しました");
+  if(ok){ S.settings=null; S.photos={}; render(); }
+}
+
+/* ===== 描画（入力中のフォーカスを保つ） ===== */
+function render(){
+  const a=document.activeElement, id=a&&a.id, sel = a && typeof a.selectionStart==="number" ? [a.selectionStart,a.selectionEnd] : null;
+  document.getElementById("app").innerHTML = view();
+  if(id){ const n=document.getElementById(id); if(n && n!==document.body){ n.focus({preventScroll:true}); if(sel && n.setSelectionRange){ try{ n.setSelectionRange(sel[0],sel[1]); }catch(e){} } } }
+}
+
+/* ===== 起動 ===== */
+render();
+if(SUPABASE_URL && SUPABASE_KEY && S.code) load();
+if(SUPABASE_URL && SUPABASE_KEY && !S.code) rpc("shirafu_needs_setup", {}).then(v=>{ if(v===true){ S.needsSetup=true; render(); } }).catch(()=>{});
+setInterval(()=>{ if(document.visibilityState==="visible" && S.code && !(document.activeElement && document.activeElement.matches("input"))) load(); }, POLL_MS);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && S.code) load(); });
+</script>
+</body>
+</html>
