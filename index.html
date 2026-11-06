@@ -128,7 +128,8 @@ const AMOUNT_L = {glass:0.12, half:0.75, full:1.5};
 const AMOUNT_LABEL = {glass:"ちょっと（1〜2杯）", half:"半本", full:"1本以上"};
 const DAY_BOUNDARY_HOURS = 4, SOS_MIN = 15, WITHDRAWAL_DAYS = 14, POLL_MS = 20000;
 const REACTIONS = ["顔が締まってきた","イケメン化進行中","お前なら出来る","明日取り返そ"];
-const CHEERS = ["耐えろ！","炭酸水いけ","電話しよか？"];
+const CHEERS = ["どした？話そ","今から電話する","耐えろ、俺もいる"];
+const DEFAULT_SOS = ["助けて。スーパーに吸い寄せられてる","飲みたすぎて滅","誰か今すぐ話しかけて"];
 
 /* ===== メンズコーチジョージの言葉（ファンのまとめサイト掲載のフレーズより） ===== */
 const G = {
@@ -461,8 +462,8 @@ function checkinView(m){
       <button class="ghost chip" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分":"今日の分"}</button></div>
     <div class="row">
       ${d.photo?`<img class="thumb" src="${esc(d.photo)}" alt="撮った顔写真">`:""}
-      <label class="btn" for="cam" style="flex:1">${d.photo?"撮り直す":"① 顔を撮る"}</label>
-      <input id="cam" type="file" accept="image/*" capture="user" data-act="photo" style="position:absolute;width:1px;height:1px;opacity:0">
+      <label class="btn" for="cam" style="flex:1" data-act="cam-open">${d.photo?"撮り直す":"① 顔を撮る"}</label>
+      <input id="cam" type="file" accept="image/*" capture="user" data-act="photo" onchange="takePhoto(this)" style="position:absolute;width:1px;height:1px;opacity:0">
     </div>
     <div class="row">
       <button class="big ${d.drank===false?"primary":""}" data-act="drank" data-v="no">② シラフで勝った</button>
@@ -480,14 +481,23 @@ function checkinView(m){
 
 function beforeAfterView(m){
   const ps = postsOf(m.id).filter(p=>p.hasPhoto);
-  if(ps.length<2) return `<div class="card"><h2>Before / After</h2><p class="muted small">顔写真が2日分たまると、最初の顔と最新の顔をスライドで比べられます。</p></div>`;
-  const a = ps[0], b = ps[ps.length-1], va = photoFor(a.id), vb = photoFor(b.id);
+  if(!ps.length) return `<div class="card"><h2>Before / After</h2><p class="muted small">今日の顔を撮ると、ここに「Day 1」として残ります。毎日撮るほど、変化が並んでいきます。</p></div>`;
   const ok = v => v && v.startsWith && v.startsWith("data:");
+  const a = ps[0], b = ps[ps.length-1], va = photoFor(a.id), vb = photoFor(b.id);
+  const strip = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">${ps.slice(-30).map(p=>{ const v=photoFor(p.id);
+      return `<div style="flex:0 0 auto;text-align:center">${ok(v)?`<img class="thumb" src="${esc(v)}" alt="">`:`<div class="thumb" style="background:var(--bg)"></div>`}<div class="muted" style="font-size:11px">Day ${dayNum(m,p.date)}</div></div>`; }).join("")}</div>`;
+  if(ps.length===1){
+    return `<div class="card"><h2>Before / After</h2>
+      ${ok(va)?`<div class="ba"><img src="${esc(va)}" alt="Day ${dayNum(m,a.date)}の顔"><span class="lbl" style="left:8px">Before：Day ${dayNum(m,a.date)}</span></div>`:`<div class="ph-empty">写真を読み込み中…</div>`}
+      <p class="muted small">これがスタートの顔。明日からの顔と、スライドで比べられるようになります。</p>
+      ${quote("ikemen")}</div>`;
+  }
   if(!ok(va)||!ok(vb)) return `<div class="card"><h2>Before / After</h2><p class="muted small">写真を読み込み中…</p></div>`;
   return `<div class="card"><h2>Before / After</h2>
     <div class="ba"><img src="${esc(vb)}" alt="最新の顔"><img id="ba-top" src="${esc(va)}" alt="最初の顔" style="clip-path:inset(0 ${100-S.ba}% 0 0)">
       <span class="lbl" style="left:8px">Day ${dayNum(m,a.date)}</span><span class="lbl" style="right:8px">Day ${dayNum(m,b.date)}</span></div>
     <label class="f" for="ba-range">スライドして比べる<input id="ba-range" type="range" min="0" max="100" value="${S.ba}" data-act="ba"></label>
+    <span class="muted small">これまでの顔（${ps.length}日分）</span>${strip}
     ${quote("ikemen")}</div>`;
 }
 
@@ -497,12 +507,13 @@ function feedView(viewer){
   const shown = visible.slice(0, S.feedLimit);
   const sosHtml = sos.map(s=>{
     const who = memberById(s.mid); if(!who) return "";
-    const left = Math.max(0, Math.ceil((s.ts + SOS_MIN*60e3 - Date.now())/60e3));
     const cheers = S.data.reactions.filter(r=>r.target==="sos-"+s.id);
-    return `<div class="sosbanner" role="alert"><b>${esc(who.name)} がスーパーに吸い寄せられています${left?`（残り約${left}分）`:""}</b>
-      <p class="small">今まさにワインと戦闘中。一言で援護してください。</p>
+    const t = "sos-"+s.id;
+    return `<div class="sosbanner" role="alert"><span class="small">SOS ・ ${new Date(s.ts).getHours()}:${pad(new Date(s.ts).getMinutes())}</span>
+      <b style="font-size:18px">${esc(who.name)}「${esc(s.message||"助けて")}」</b>
       ${cheers.length?`<div class="comments">${cheers.map(r=>`<span><b>${esc(memberById(r.mid)?.name||"だれか")}</b>：${esc(r.comment||r.kind)}</span>`).join("")}</div>`:""}
-      ${s.mid===viewer.id?"":`<div class="react">${CHEERS.map(k=>`<button class="chip" data-act="cheer" data-v="${esc(s.id)}" data-k="${esc(k)}">${esc(k)}</button>`).join("")}</div>`}
+      ${s.mid===viewer.id?"":`<div class="react">${CHEERS.map(k=>`<button class="chip" data-act="cheer" data-v="${esc(s.id)}" data-k="${esc(k)}">${esc(k)}</button>`).join("")}</div>
+      <form class="row" data-form="comment" data-v="${esc(t)}" style="flex-wrap:nowrap"><input id="c-${esc(t)}" type="text" maxlength="80" placeholder="自分の言葉で返事する" value="${esc(S.comment[t]??"")}" data-comment="${esc(t)}"><button type="submit">送る</button></form>`}
     </div>`;
   }).join("");
   return `<div class="stack">
@@ -560,6 +571,9 @@ function settingsView(m){
       <p class="muted small">「これまでの1日平均 − その日に飲んだ量」で計算（ワイン100mlあたり73kcal、朝4時までは前日扱い）。飲んだ日でもマイナスにはなりません。</p></div>
     `:""}
     <button class="primary" data-act="s-save">保存する</button>
+    ${s.role==="challenger"?`<form class="card" data-form="sos-msgs"><h2>SOSで送る言葉</h2><p class="muted small">SOSボタンを押したときに出る3つの言葉です。自分の口ぐせに変えておくと、押しやすくなります。</p>
+      ${myMsgs().map((t,i)=>`<input id="sm-${i}" type="text" maxlength="60" value="${esc(t)}" aria-label="SOSの言葉${i+1}">`).join("")}
+      <button type="submit">言葉を保存</button></form>`:""}
     ${lineCard()}
     <div class="card"><h2>観客を増やす</h2><p class="muted small">このページのURLと合言葉を、LINEなどで送るだけ。相手はアカウント登録なしで、名前と暗証番号を決めれば参加できます。</p>
       <button data-act="copy-link">URLをコピー</button></div>
@@ -614,27 +628,47 @@ async function notifyLine(sosId){
 }
 
 /* ===== SOS ===== */
+// 押す人は「まず誰かに聞いてほしい」。だから①ひとこと送る → ②返事を待つあいだの過ごし方、の順。
 let sosTimer=null;
-function openSos(s){
-  const quests = ["炭酸水を1本、一気に飲む","財布を置いて、玄関から離れる","観客にLINEで「今やばい」と送る","友達とゲームを起動する"];
-  const lineText = encodeURIComponent("今、ワイン買いに行きたくてやばい。15分耐えるから何か送って（脱パンパン顔）");
+function myMsgs(){ const m=me(); const a=(m&&Array.isArray(m.sosMessages)&&m.sosMessages.length)?m.sosMessages:DEFAULT_SOS; return a.slice(0,3); }
+function openSosAsk(){
+  S.sosOpen={step:"ask"};
   document.getElementById("overlay-root").innerHTML = `<div class="overlay" role="dialog" aria-modal="true" aria-labelledby="sos-h"><div class="inner">
-    <h1 id="sos-h">15分だけ耐える</h1>
-    <p class="muted">飲みたい波は、15〜20分でピークを越えることが多いです。タイマーが0になるまで、どれか1つやってみてください。</p>
+    <h1 id="sos-h">誰かに言おう</h1>
+    <p class="muted">押した瞬間、仲間に届きます。${LINE_BASIC_ID?"LINE連携している人にはLINEでも届きます。":""}</p>
+    <div class="stack" style="gap:10px">${myMsgs().map((t,i)=>`<button class="big wine" style="flex:none;min-height:68px;font-size:17px" data-act="sos-send" data-v="${i}">「${esc(t)}」</button>`).join("")}</div>
+    <form class="stack" data-form="sos-free" style="gap:8px"><label class="f" for="sos-free-in">自分の言葉で送る<input id="sos-free-in" type="text" maxlength="60" placeholder="例：仕事でやらかした。飲みたい"></label>
+      <button type="submit">この言葉で送る</button></form>
+    <button class="ghost" data-act="sos-cancel">やっぱり大丈夫</button>
+  </div></div>`;
+}
+function openSosWait(s){
+  S.sosOpen={step:"wait", id:s.id, ts:s.ts, message:s.message};
+  const quests = ["炭酸水を1本、一気に飲む","財布を置いて、玄関から離れる","友達とゲームを起動する","シャワーを浴びる"];
+  const me_ = me();
+  document.getElementById("overlay-root").innerHTML = `<div class="overlay" role="dialog" aria-modal="true" aria-labelledby="sos-h"><div class="inner">
+    <span class="muted small">送った言葉</span>
+    <h1 id="sos-h" style="font-size:22px">${esc(me_?me_.name:"")}「${esc(s.message||"助けて")}」</h1>
+    <div class="card"><h2>届いた返事</h2><div id="sos-replies" class="comments"></div></div>
+    <div class="card"><span class="muted small" style="text-align:center">返事を待つあいだ、15分だけ耐える</span><span class="num timer" id="sos-time">15:00</span></div>
+    <div class="stack" style="gap:8px"><span class="muted small">待つあいだに、どれか1つ</span>${quests.map((q,i)=>`<label class="check" for="q${i}"><input id="q${i}" type="checkbox"> <span>${q}</span></label>`).join("")}</div>
     ${quote("dekiru")}
-    <div class="card"><span class="num timer" id="sos-time">15:00</span><p class="muted small" style="text-align:center">観客のタイムラインに「SOS中」と出ています</p></div>
-    <div class="stack" style="gap:8px">${quests.map((q,i)=>`<label class="check" for="q${i}"><input id="q${i}" type="checkbox"> <span>${q}</span></label>`).join("")}</div>
-    <a class="btn" href="https://line.me/R/share?text=${lineText}" target="_blank" rel="noopener">LINEで観客に助けを呼ぶ</a>
-    ${quote("noise")}
     <button class="primary" id="sos-held" data-act="sos-end" data-v="held" disabled>15分耐えた</button>
     <button class="ghost" data-act="sos-end" data-v="calm">落ち着いたので終わる</button>
     <button class="ghost" data-act="sos-end" data-v="drank">飲んでしまった（記録だけして戻る）</button>
   </div></div>`;
+  renderSosReplies();
   const end = s.ts + SOS_MIN*60e3;
   const tick = ()=>{ const el=document.getElementById("sos-time"); if(!el){ clearInterval(sosTimer); return; }
     const left=Math.max(0,end-Date.now()); el.textContent = pad(Math.floor(left/60e3))+":"+pad(Math.floor(left%60e3/1e3));
     if(left<=0){ document.getElementById("sos-held").disabled=false; clearInterval(sosTimer); } };
-  clearInterval(sosTimer); tick(); sosTimer=setInterval(tick,1000); S.sosOpen=s.id;
+  clearInterval(sosTimer); tick(); sosTimer=setInterval(tick,1000);
+}
+function renderSosReplies(){
+  const box=document.getElementById("sos-replies"); if(!box || !S.sosOpen || !S.sosOpen.id || !S.data) return;
+  const rs=S.data.reactions.filter(r=>r.target==="sos-"+S.sosOpen.id);
+  box.innerHTML = rs.length ? rs.map(r=>`<span><b>${esc(memberById(r.mid)?.name||"だれか")}</b>：${esc(r.comment||r.kind)}</span>`).join("")
+    : `<span class="muted small">まだ返事はありません。届くと、ここに出ます（20秒ごとに更新）。</span>`;
 }
 function closeSos(){ clearInterval(sosTimer); document.getElementById("overlay-root").innerHTML=""; S.sosOpen=null; }
 
@@ -644,6 +678,7 @@ document.addEventListener("click", async ev=>{
   const a = el.dataset.act, v = el.dataset.v, m = me();
   if(a==="photo"||a==="ba") return;
   switch(a){
+    case "cam-open": S.pickingPhoto=true; return;
     case "tab": S.tab=v; window.scrollTo(0,0); break;
     case "reload": load(); return;
     case "ob-role": S.ob.role=v; break;
@@ -671,6 +706,9 @@ document.addEventListener("click", async ev=>{
     case "line-unlink": return lineUnlink();
     case "close-modal": document.getElementById("modal-root").innerHTML=""; return;
     case "sos-start": return startSos();
+    case "sos-send": return sendSos(myMsgs()[Number(v)]);
+    case "sos-cancel": closeSos(); return;
+    case "sos-msg-save": return saveSosMsgs();
     case "sos-end": return endSos(v);
   }
   render();
@@ -682,13 +720,17 @@ document.addEventListener("input", ev=>{
   else if(t.dataset.comment) S.comment[t.dataset.comment]=t.value;
   else if(t.dataset.act==="ba"){ S.ba=Number(t.value); const top=document.getElementById("ba-top"); if(top) top.style.clipPath=`inset(0 ${100-S.ba}% 0 0)`; }
 });
-document.addEventListener("change", async ev=>{
-  const t = ev.target;
-  if(t.dataset.act==="photo" && t.files && t.files[0]){
-    try{ S.draft.photo = await compress(t.files[0]); }catch(e){ toast("写真を読み込めませんでした。別の写真で試してください。"); }
-    render();
-  }
-});
+// カメラ中に画面が更新されても写真を受け取れるよう、要素そのものに処理を付ける（document経由だと取りこぼす）
+async function takePhoto(input){
+  S.pickingPhoto=false;
+  const f = input.files && input.files[0]; if(!f) return;
+  const draft = S.draft;
+  try{ const data = await compress(f); if(draft) draft.photo = data; if(S.draft) S.draft.photo = data; toast("写真をセットしました"); }
+  catch(e){ toast("写真を読み込めませんでした。別の写真で試してください。"); }
+  render();
+}
+window.addEventListener("focus", ()=>{ setTimeout(()=>{ S.pickingPhoto=false; }, 60000); });
+
 document.addEventListener("submit", async ev=>{
   const f = ev.target.closest("[data-form]"); if(!f) return; ev.preventDefault();
   const kind = f.dataset.form;
@@ -716,6 +758,8 @@ document.addEventListener("submit", async ev=>{
       setAuth(id, ob.pin); }
     catch(e){ toast(errText(e)); }
   }
+  if(kind==="sos-free"){ const t=document.getElementById("sos-free-in").value.trim(); if(!t){ toast("ひとこと入れてください"); return; } return sendSos(t); }
+  if(kind==="sos-msgs"){ return saveSosMsgs(); }
   if(kind==="comment"){
     const target=f.dataset.v, text=(S.comment[target]||"").trim(); if(!text) return;
     const cur=S.data.reactions.find(r=>r.target===target && r.mid===S.auth.mid);
@@ -742,14 +786,23 @@ async function react(target, kind){
 }
 async function startSos(){
   const m=me(), open = S.data.sos.find(s=>s.mid===m.id && !s.result && Date.now() < s.ts+SOS_MIN*60e3);
-  if(open) return openSos(open);
-  const id = await act("shirafu_sos_start", A());
-  if(id){ openSos({id, ts:Date.now()}); notifyLine(id); }
+  if(open) return openSosWait(open);
+  openSosAsk();
+}
+async function sendSos(message){
+  if(S.sending) return; S.sending=true;
+  const id = await act("shirafu_sos_start", {...A(), p_message:message});
+  S.sending=false;
+  if(id){ openSosWait({id, ts:Date.now(), message}); notifyLine(id); }
 }
 async function endSos(result){
-  const id=S.sosOpen; closeSos();
+  const id = S.sosOpen && S.sosOpen.id; closeSos();
   if(id) await act("shirafu_sos_end", {...A(), p_id:id, p_result:result}, result==="held" ? "15分耐えた。お前なら出来ると思ってた" : null);
   if(result==="drank"){ const m=me(); startDraft(m,today()); S.draft.drank=true; S.draft.editing=true; S.tab="home"; render(); toast("量だけ記録しよう。称号は1つも減りません"); }
+}
+async function saveSosMsgs(){
+  const msgs=[0,1,2].map(i=>(document.getElementById("sm-"+i)||{}).value||"").map(s=>s.trim());
+  if(await act("shirafu_set_sos_messages", {...A(), p_msgs:msgs}, "SOSの言葉を保存しました")) render();
 }
 async function saveSettings(){
   const s=S.settings, name=s.name.trim(); if(!name){ toast("表示名を入れてください"); return; }
@@ -762,6 +815,7 @@ async function saveSettings(){
 function render(){
   const a=document.activeElement, id=a&&a.id, sel = a && typeof a.selectionStart==="number" ? [a.selectionStart,a.selectionEnd] : null;
   document.getElementById("app").innerHTML = view();
+  renderSosReplies();
   if(id){ const n=document.getElementById(id); if(n && n!==document.body){ n.focus({preventScroll:true}); if(sel && n.setSelectionRange){ try{ n.setSelectionRange(sel[0],sel[1]); }catch(e){} } } }
 }
 
@@ -769,8 +823,8 @@ function render(){
 render();
 if(SUPABASE_URL && SUPABASE_KEY && S.code) load();
 if(SUPABASE_URL && SUPABASE_KEY && !S.code) rpc("shirafu_needs_setup", {}).then(v=>{ if(v===true){ S.needsSetup=true; render(); } }).catch(()=>{});
-setInterval(()=>{ if(document.visibilityState==="visible" && S.code && !(document.activeElement && document.activeElement.matches("input"))) load(); }, POLL_MS);
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && S.code) load(); });
+setInterval(()=>{ if(document.visibilityState==="visible" && S.code && !S.pickingPhoto && !(document.activeElement && document.activeElement.matches("input"))) load(); }, POLL_MS);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && S.code && !S.pickingPhoto) load(); });
 </script>
 </body>
 </html>
