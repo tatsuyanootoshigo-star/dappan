@@ -444,38 +444,62 @@ function homeView(m){
 function startDraft(m, date){
   const p = postOn(m.id, date);
   S.draft = { mid:m.id, date, photo:null, drank: p? p.drank : null, amount: p? p.amount||null : null, urge: p? p.urge : null,
-    sweat: !!(p&&p.sweat), insomnia: !!(p&&p.insomnia), tremor: !!(p&&p.tremor), editing:false, saving:false };
+    sweat: !!(p&&p.sweat), insomnia: !!(p&&p.insomnia), tremor: !!(p&&p.tremor), editing:false, saving:false, err:null };
+}
+function draftDirty(d, p){
+  if(!p) return true;
+  return !!d.photo || d.drank!==p.drank || (d.amount||null)!==(p.amount||null) || d.urge!==p.urge
+    || d.sweat!==!!p.sweat || d.insomnia!==!!p.insomnia || d.tremor!==!!p.tremor;
+}
+function photoBox(d, existing, big){
+  // 写真の状態を必ずバッジで見せる：未保存／保存済み／なし
+  if(d.photo) return `<div class="ba"><img src="${esc(d.photo)}" alt="撮った顔写真"><span class="lbl" style="left:8px;background:var(--warn)">まだ保存されていません</span></div>
+    <label class="btn" for="cam" data-act="cam-open">撮り直す</label>`;
+  if(existing && existing.hasPhoto){ const v=photoFor(existing.id);
+    return `${v && v.startsWith && v.startsWith("data:") ? `<div class="ba"><img src="${esc(v)}" alt="保存済みの顔写真"><span class="lbl" style="left:8px;background:var(--accent)">✓ 保存済み</span></div>` : `<div class="ph-empty">保存済みの写真を読み込み中…</div>`}
+      <label class="btn" for="cam" data-act="cam-open">写真を撮り直す</label>`; }
+  return `<label for="cam" data-act="cam-open" class="ph-empty" style="cursor:pointer;border:2px dashed var(--line);flex-direction:column;gap:6px;${big?"":"aspect-ratio:auto;min-height:120px"}">
+      <span style="font-size:17px;font-weight:700;color:var(--ink)">① 顔を撮る</span><span class="small">タップでカメラが開きます</span></label>`;
 }
 function checkinView(m){
   const t = today();
   if(!S.draft || S.draft.mid!==m.id) startDraft(m, t);
   const d = S.draft, label = d.date===t ? "今日" : "昨日", existing = postOn(m.id, d.date);
-  if(existing && !d.editing){
-    return `<div class="card"><div class="row between"><h2>${label}の顔、提出済み</h2>
-      <span class="pill ${existing.drank?"drank":"clean"}">${existing.drank?"飲んだ（"+esc(AMOUNT_LABEL[existing.amount]||"")+"）":"シラフで勝利"}</span></div>
-      <div class="row">${existing.hasPhoto?imgHtml(existing.id,"thumb"):""}<span class="muted small">飲みたい度 ${existing.urge}/5</span></div>
-      <div class="row"><button data-act="edit">やり直す</button><button class="ghost" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分を記録":"今日に戻る"}</button></div></div>`;
+  const camInput = `<input id="cam" type="file" accept="image/*" capture="user" onchange="takePhoto(this)" style="position:absolute;width:1px;height:1px;opacity:0">`;
+  const dateBtn = `<button class="ghost chip" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分":"今日の分"}</button>`;
+
+  // ---- 保存済みの表示 ----
+  if(existing && !d.editing && !d.photo){
+    return `<div class="card" style="border:2px solid var(--accent)">
+      <div class="row between"><h2>${label}（${md(d.date)}）の記録</h2>${dateBtn}</div>
+      <div class="alert info" style="flex-direction:row;align-items:center;gap:8px"><b style="font-size:18px">✓</b><span><b>サーバーに保存済み</b>。仲間のタイムラインに出ています。</span></div>
+      ${photoBox(d, existing, true)}
+      <div class="row"><span class="pill ${existing.drank?"drank":"clean"}">${existing.drank?"飲んだ（"+esc(AMOUNT_LABEL[existing.amount]||"")+"）":"シラフで勝利"}</span><span class="muted small">飲みたい度 ${existing.urge}/5</span></div>
+      <button class="ghost" data-act="edit">内容を直す</button>${camInput}</div>`;
   }
+
+  // ---- 入力フォーム ----
   const early = m.start && d.date>=m.start && diffDays(m.start, d.date) < WITHDRAWAL_DAYS;
+  const needAmount = d.drank===true && !d.amount;
+  const missing = [d.drank===null?"シラフか飲んだか":null, needAmount?"飲んだ量":null, d.urge===null?"飲みたい度":null].filter(Boolean);
+  const ready = !missing.length && draftDirty(d, existing);
+  const saveLabel = d.saving ? "保存中…" : existing ? (d.photo && !d.editing ? "この写真を保存する" : "変更を保存する") : (d.photo ? "④ 写真つきで投稿する" : "④ 写真なしで投稿する");
   return `<div class="card">
-    <div class="row between"><h2>${label}（${md(d.date)}）の顔を提出</h2>
-      <button class="ghost chip" data-act="date" data-v="${d.date===t?"y":"t"}">${d.date===t?"昨日の分":"今日の分"}</button></div>
+    <div class="row between"><h2>${label}（${md(d.date)}）の記録</h2>${dateBtn}</div>
+    ${photoBox(d, existing, !!d.photo)}${camInput}
     <div class="row">
-      ${d.photo?`<img class="thumb" src="${esc(d.photo)}" alt="撮った顔写真">`:""}
-      <label class="btn" for="cam" style="flex:1" data-act="cam-open">${d.photo?"撮り直す":"① 顔を撮る"}</label>
-      <input id="cam" type="file" accept="image/*" capture="user" data-act="photo" onchange="takePhoto(this)" style="position:absolute;width:1px;height:1px;opacity:0">
-    </div>
-    <div class="row">
-      <button class="big ${d.drank===false?"primary":""}" data-act="drank" data-v="no">② シラフで勝った</button>
-      <button class="big ${d.drank===true?"wine":""}" data-act="drank" data-v="yes">飲んだ<br><span class="small">（物語の途中）</span></button>
+      <button class="big ${d.drank===false?"primary":""}" data-act="drank" data-v="no" aria-pressed="${d.drank===false}">② シラフで勝った</button>
+      <button class="big ${d.drank===true?"wine":""}" data-act="drank" data-v="yes" aria-pressed="${d.drank===true}">飲んだ<br><span class="small">（物語の途中）</span></button>
     </div>
     ${d.drank===true?`<div class="row">${Object.entries(AMOUNT_LABEL).map(([k,l])=>`<button class="chip ${d.amount===k?"on on-wine":""}" data-act="amount" data-v="${k}">${l}</button>`).join("")}</div>`:""}
+    <div class="stack" style="gap:6px"><span class="muted small">③ 今日の飲みたい度（1＝ワインって何？ ／ 5＝もう限界）</span>
+      <div class="row">${[1,2,3,4,5].map(n=>`<button class="chip ${d.urge===n?"on":""}" style="flex:1" data-act="urge" data-v="${n}" aria-pressed="${d.urge===n}">${n}</button>`).join("")}</div></div>
     ${early?`<div class="stack" style="gap:6px"><span class="muted small">体のチェック（当てはまるものだけ）</span><div class="row">
       ${[["sweat","寝汗"],["insomnia","眠れない"],["tremor","手の震え"]].map(([k,l])=>`<button class="chip ${d[k]?"on on-wine":""}" data-act="sym" data-v="${k}" aria-pressed="${d[k]}">${l}</button>`).join("")}</div></div>`:""}
-    <div class="stack" style="gap:6px"><span class="muted small">③ 今日の飲みたい度（押したら提出）</span>
-      <div class="row">${[1,2,3,4,5].map(n=>`<button class="chip ${d.urge===n?"on":""}" style="flex:1" data-act="urge" data-v="${n}" ${d.drank===null||(d.drank&&!d.amount)||d.saving?"disabled":""}>${n}</button>`).join("")}</div>
-      <span class="muted small">1＝ワインって何？ ／ 5＝もう限界</span></div>
-    ${d.editing?`<button class="ghost" data-act="cancel-edit">やめる</button>`:""}
+    ${d.err?`<div class="alert danger" role="alert"><b>保存できませんでした</b><p>${esc(d.err)}</p></div>`:""}
+    <button class="primary" style="min-height:58px;font-size:17px" data-act="save-post" ${ready&&!d.saving?"":"disabled"}>${saveLabel}</button>
+    <p class="muted small" style="text-align:center">${missing.length?"あと：" + missing.join("・") + " を選ぶと投稿できます":(existing&&!draftDirty(d,existing)?"変更はありません":"押すまでサーバーには保存されません")}</p>
+    ${existing||d.editing?`<button class="ghost" data-act="cancel-edit">やめる（保存済みの内容に戻す）</button>`:""}
   </div>`;
 }
 
@@ -687,7 +711,8 @@ document.addEventListener("click", async ev=>{
     case "drank": S.draft.drank = v==="yes"; if(!S.draft.drank) S.draft.amount=null; break;
     case "amount": S.draft.amount=v; break;
     case "sym": S.draft[v]=!S.draft[v]; break;
-    case "urge": S.draft.urge=Number(v); return savePost();
+    case "urge": S.draft.urge=Number(v); break;
+    case "save-post": return savePost();
     case "edit": S.draft.editing=true; break;
     case "cancel-edit": startDraft(m, S.draft.date); break;
     case "date": startDraft(m, v==="y"?addDays(today(),-1):today()); break;
@@ -725,9 +750,10 @@ async function takePhoto(input){
   S.pickingPhoto=false;
   const f = input.files && input.files[0]; if(!f) return;
   const draft = S.draft;
-  try{ const data = await compress(f); if(draft) draft.photo = data; if(S.draft) S.draft.photo = data; toast("写真をセットしました"); }
+  try{ const data = await compress(f); if(draft) draft.photo = data; if(S.draft){ S.draft.photo = data; S.draft.err=null; } toast("写真をセットしました。下のボタンで保存してください"); }
   catch(e){ toast("写真を読み込めませんでした。別の写真で試してください。"); }
   render();
+  const btn=document.querySelector('[data-act="save-post"]'); if(btn) btn.scrollIntoView({block:"center", behavior:"smooth"});
 }
 window.addEventListener("focus", ()=>{ setTimeout(()=>{ S.pickingPhoto=false; }, 60000); });
 
@@ -770,14 +796,25 @@ function setAuth(mid, pin){ S.auth={mid,pin}; lsSet("dpp_auth", JSON.stringify(S
 
 async function savePost(){
   const m=me(), d=S.draft; if(d.saving) return;
-  d.saving=true; render();
-  const id = await act("shirafu_save_post", {...A(), p_date:d.date, p_drank:!!d.drank, p_amount:d.drank?d.amount:null, p_urge:d.urge,
-    p_sweat:d.sweat, p_insomnia:d.insomnia, p_tremor:d.tremor, p_photo:d.photo||null},
-    d.drank ? "記録しました。物語はまだ途中です" : "提出完了。今日もシラフで勝利");
-  if(id && typeof id==="string" && d.photo) S.photos[id]=d.photo;
-  d.saving=false;
-  if(id) startDraft(m, d.date);
-  render();
+  d.saving=true; d.err=null; render();
+  const hadPhoto = !!d.photo;
+  let id=null;
+  try{
+    id = await rpc("shirafu_save_post", {...A(), p_date:d.date, p_drank:!!d.drank, p_amount:d.drank?d.amount:null, p_urge:d.urge,
+      p_sweat:d.sweat, p_insomnia:d.insomnia, p_tremor:d.tremor, p_photo:d.photo||null});
+  }catch(e){
+    d.saving=false; d.err = errText(e) + (hadPhoto?"（撮った写真はこの画面に残っています。もう一度押してください）":""); render();
+    if(e.code==="bad_pin"){ S.auth=null; lsSet("dpp_auth",null); render(); }
+    return;
+  }
+  if(hadPhoto && typeof id==="string") S.photos[id]=d.photo;
+  await load();
+  const saved = postOn(m.id, d.date);
+  if(!saved || (hadPhoto && !saved.hasPhoto)){
+    d.saving=false; d.err="サーバーで確認できませんでした。電波を確認して、もう一度押してください。"; render(); return;
+  }
+  toast(hadPhoto ? "写真つきで保存しました" : (saved.drank ? "保存しました。物語はまだ途中です" : "保存しました。今日もシラフで勝利"));
+  startDraft(m, d.date); render(); checkNewTitles();
 }
 async function react(target, kind){
   const cur = S.data.reactions.find(r=>r.target===target && r.mid===S.auth.mid);
