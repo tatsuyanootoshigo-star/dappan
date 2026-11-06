@@ -119,6 +119,8 @@ code{font-size:13px;background:var(--bg);padding:1px 6px;border-radius:6px;overf
    ========================================================= */
 const SUPABASE_URL = "https://yzwlccbniyzprooklkyq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_u3bf6_6PILibXUmqtFa1zA_GXQBoJwJ";
+/* LINE公式アカウントのベーシックID（例："@123abcde"）。空のままならLINE通知の欄は案内だけ表示 */
+const LINE_BASIC_ID = "";
 
 /* ===== 計算の前提 ===== */
 const WINE_KCAL_PER_100ML = 73, ETHANOL_DENSITY = 0.8, BOTTLE_L = 1.5;
@@ -175,7 +177,8 @@ const S = {
   code: lsGet("dpp_code") || "", auth: readAuth(),
   data: null, loading:false, loadErr:null, photos:{},
   tab:null, draft:null, settings:null, comment:{}, feedLimit:20, ba:50,
-  ob:{mode:null, name:"", pin:"", role:"challenger", start:null, pick:null}, sosOpen:null
+  ob:{mode:null, name:"", pin:"", role:"challenger", start:null, pick:null}, sosOpen:null,
+  line:{linked:null, code:null, busy:false}, photoQueue:new Set(), photoErr:null
 };
 
 /* ===== 小道具 ===== */
@@ -321,18 +324,28 @@ async function compress(file, size=360, q=0.72){
   } finally { URL.revokeObjectURL(url); }
 }
 function photoFor(postId){
-  if(S.photos[postId]===undefined && S.auth){
-    S.photos[postId]="loading";
-    rpc("shirafu_photo", {...A(), p_post_id:postId}).then(v=>{
-      S.photos[postId] = v==="hidden" ? "hidden" : (typeof v==="string" && v.startsWith("data:image/jpeg")) ? v : "none"; render();
-    }).catch(()=>{ S.photos[postId]="none"; render(); });
+  const v = S.photos[postId];
+  if(v===undefined){ S.photos[postId]="loading"; S.photoQueue.add(postId); clearTimeout(photoFor.t); photoFor.t=setTimeout(fetchPhotos, 30); return "loading"; }
+  return v;
+}
+async function fetchPhotos(){
+  const ids=[...S.photoQueue]; S.photoQueue.clear(); if(!ids.length) return;
+  for(let i=0;i<ids.length;i+=20){
+    const chunk=ids.slice(i,i+20);
+    try{
+      const map = await rpc("shirafu_photos", {p_code:S.code, p_ids:chunk}) || {};
+      chunk.forEach(id=>{ const v=map[id]; S.photos[id] = (typeof v==="string" && v.startsWith("data:image/")) ? v : "none"; });
+      S.photoErr=null;
+    }catch(e){
+      chunk.forEach(id=>{ S.photos[id]="error"; }); S.photoErr = e.code==="network" ? "通信できませんでした" : (e.message||"不明なエラー");
+    }
   }
-  return S.photos[postId];
+  render();
 }
 function imgHtml(postId, cls="photo"){
   const v = photoFor(postId);
   if(v==="loading") return cls==="thumb" ? "" : `<div class="ph-empty">写真を読み込み中…</div>`;
-  if(v==="hidden") return `<div class="ph-empty">この顔は、本人が見せない設定にしています</div>`;
+  if(v==="error") return cls==="thumb" ? "" : `<div class="ph-empty stack" style="gap:8px"><span>写真を読み込めませんでした</span><span class="small">${esc(S.photoErr||"")}</span><button data-act="photo-retry">もう一度読み込む</button></div>`;
   if(!v || v==="none") return cls==="thumb" ? "" : `<div class="ph-empty">写真なし</div>`;
   return `<img class="${cls}" src="${esc(v)}" alt="">`;
 }
@@ -545,14 +558,59 @@ function settingsView(m){
       <label class="f" for="s-bottles">これまで週に飲んでいた本数<input id="s-bottles" type="number" inputmode="decimal" step="0.5" min="0" value="${esc(s.bottles)}" data-set="bottles"></label>
       <label class="f" for="s-abv">度数（%）<input id="s-abv" type="number" inputmode="decimal" step="0.5" min="0" value="${esc(s.abv)}" data-set="abv"></label>
       <p class="muted small">「これまでの1日平均 − その日に飲んだ量」で計算（ワイン100mlあたり73kcal、朝4時までは前日扱い）。飲んだ日でもマイナスにはなりません。</p></div>
-    <div class="card"><h2>顔写真を見せない人</h2><p class="muted small">選んだ人には、あなたの顔写真が届きません（サーバー側で止めます）。</p>
-      ${others.length?`<div class="row">${others.map(o=>`<button class="chip ${s.hideFrom.includes(o.id)?"on on-wine":""}" data-act="s-hide" data-v="${esc(o.id)}" aria-pressed="${s.hideFrom.includes(o.id)}">${esc(o.name)}</button>`).join("")}</div>`:`<p class="muted small">まだ他の参加者がいません。</p>`}
-    </div>`:""}
+    `:""}
     <button class="primary" data-act="s-save">保存する</button>
+    ${lineCard()}
     <div class="card"><h2>観客を増やす</h2><p class="muted small">このページのURLと合言葉を、LINEなどで送るだけ。相手はアカウント登録なしで、名前と暗証番号を決めれば参加できます。</p>
       <button data-act="copy-link">URLをコピー</button></div>
     <button class="ghost" data-act="logout">この端末からログアウト</button>
   </div>`;
+}
+
+/* ===== LINE通知 ===== */
+const FN_URL = () => SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/line";
+function lineCard(){
+  const L = S.line;
+  if(!LINE_BASIC_ID) return `<div class="card"><h2>LINE通知（任意）</h2><p class="muted small">管理者がLINE公式アカウントを設定すると、仲間がSOSを押したときにLINEへ通知が届くようになります。</p></div>`;
+  if(L.linked===null && !L.busy) lineStatus(false);
+  const id = LINE_BASIC_ID.startsWith("@") ? LINE_BASIC_ID : "@"+LINE_BASIC_ID;
+  const addUrl = "https://line.me/R/ti/p/" + encodeURIComponent(id);
+  const sendUrl = L.code ? "https://line.me/R/oaMessage/" + encodeURIComponent(id) + "/?" + encodeURIComponent(L.code) : "";
+  return `<div class="card"><div class="row between"><h2>LINE通知（任意）</h2>
+      <span class="pill ${L.linked?"clean":"drank"}">${L.linked===null?"確認中":L.linked?"連携済み":"未連携"}</span></div>
+    <p class="muted small">連携すると、仲間がSOSを押したときにLINEへ通知が届きます。</p>
+    ${L.linked ? `<button class="ghost" data-act="line-unlink">連携を解除する</button>` : `
+      <a class="btn" href="${esc(addUrl)}" target="_blank" rel="noopener">① 通知用アカウントを友だち追加</a>
+      <button data-act="line-code" ${L.busy?"disabled":""}>② 連携コードを発行</button>
+      ${L.code?`<div class="stack" style="gap:6px;text-align:center"><span class="num" style="font-size:34px;letter-spacing:.15em">${esc(L.code)}</span>
+        <a class="btn primary" href="${esc(sendUrl)}" target="_blank" rel="noopener">③ このコードをLINEで送る</a>
+        <span class="muted small">送れない場合は、トーク画面にこの6桁をそのまま送ってください（30分有効）。</span>
+        <button class="ghost" data-act="line-check">送ったので確認する</button></div>`:""}`}
+  </div>`;
+}
+async function lineStatus(manual){
+  S.line.busy=true;
+  try{ S.line.linked = !!(await rpc("shirafu_line_status", A())); if(S.line.linked) S.line.code=null; if(manual) toast(S.line.linked?"連携できました":"まだ連携されていません。コードを送ったか確認してください"); }
+  catch(e){ S.line.linked=false; if(manual) toast(errText(e)); }
+  S.line.busy=false; render();
+}
+async function lineCode(){
+  S.line.busy=true; render();
+  try{ S.line.code = await rpc("shirafu_line_issue_code", A()); }catch(e){ toast(errText(e)); }
+  S.line.busy=false; render();
+}
+async function lineUnlink(){
+  if(await act("shirafu_line_unlink", A(), "LINE通知を解除しました")){ S.line.linked=false; S.line.code=null; render(); }
+}
+async function notifyLine(sosId){
+  if(!LINE_BASIC_ID) return;
+  try{
+    const r = await fetch(FN_URL(), {method:"POST", headers:{"Content-Type":"application/json", apikey:SUPABASE_KEY},
+      body: JSON.stringify({action:"sos", ...A(), p_sos:sosId})});
+    const j = await r.json().catch(()=>({}));
+    if(r.ok) toast(j.sent ? `LINEで${j.sent}人にSOSを送りました` : "LINE連携している観客がまだいません");
+    else toast("LINE通知を送れませんでした（画面内の表示は届いています）");
+  }catch(e){ toast("LINE通知を送れませんでした（画面内の表示は届いています）"); }
 }
 
 /* ===== SOS ===== */
@@ -606,7 +664,11 @@ document.addEventListener("click", async ev=>{
     case "s-hide": { const h=S.settings.hideFrom, i=h.indexOf(v); if(i>=0) h.splice(i,1); else h.push(v); break; }
     case "s-save": return saveSettings();
     case "copy-link": try{ await navigator.clipboard.writeText(location.href.split("#")[0]); toast("URLをコピーしました。合言葉は別で伝えてください"); }catch(e){ toast("コピーできませんでした。アドレスバーのURLを送ってください"); } return;
-    case "logout": S.auth=null; lsSet("dpp_auth",null); S.tab=null; S.draft=null; S.settings=null; S.ob.mode=null; break;
+    case "logout": S.line={linked:null,code:null,busy:false}; S.auth=null; lsSet("dpp_auth",null); S.tab=null; S.draft=null; S.settings=null; S.ob.mode=null; break;
+    case "photo-retry": Object.keys(S.photos).forEach(k=>{ if(S.photos[k]==="error") delete S.photos[k]; }); break;
+    case "line-code": return lineCode();
+    case "line-check": return lineStatus(true);
+    case "line-unlink": return lineUnlink();
     case "close-modal": document.getElementById("modal-root").innerHTML=""; return;
     case "sos-start": return startSos();
     case "sos-end": return endSos(v);
@@ -682,7 +744,7 @@ async function startSos(){
   const m=me(), open = S.data.sos.find(s=>s.mid===m.id && !s.result && Date.now() < s.ts+SOS_MIN*60e3);
   if(open) return openSos(open);
   const id = await act("shirafu_sos_start", A());
-  if(id) openSos({id, ts:Date.now()});
+  if(id){ openSos({id, ts:Date.now()}); notifyLine(id); }
 }
 async function endSos(result){
   const id=S.sosOpen; closeSos();
@@ -692,8 +754,8 @@ async function endSos(result){
 async function saveSettings(){
   const s=S.settings, name=s.name.trim(); if(!name){ toast("表示名を入れてください"); return; }
   const ok = await act("shirafu_update_member", {...A(), p_name:name, p_role:s.role, p_start: s.role==="challenger" ? (s.start||addDays(today(),1)) : null,
-    p_price:Number(s.price)||0, p_bottles:Number(s.bottles)||0, p_abv:Number(s.abv)||12, p_hide:s.hideFrom}, "保存しました");
-  if(ok){ S.settings=null; S.photos={}; render(); }
+    p_price:Number(s.price)||0, p_bottles:Number(s.bottles)||0, p_abv:Number(s.abv)||12, p_hide:[]}, "保存しました");
+  if(ok){ S.settings=null; render(); }
 }
 
 /* ===== 描画（入力中のフォーカスを保つ） ===== */
